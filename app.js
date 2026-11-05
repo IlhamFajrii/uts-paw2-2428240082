@@ -49,24 +49,14 @@ app.get("/", (req, res) => {
         nama: "Muhammad Ilham Fajri",
         nim: "2428240082",
         topik: "Agen Properti",
-        database: "MongoDB + Mongoose",
-        endpoint: [
-            "GET /insurance-policies",
-            "GET /insurance-policies/:id",
-            "POST /insurance-policies",
-            "PUT /insurance-policies/:id",
-            "DELETE /insurance-policies/:id",
-            "GET /customers",
-            "POST /customers",
-            "GET /insurance-policies?jenis=kesehatan&page=1&limit=10&sortBy=premiBulanan&order=desc&fields=nomorPolis,jenis,premiBulanan"
-        ]
+        database: "MongoDB + Mongoose"
     });
 });
 
-app.get("/insurance-policies", async (req, res, next) => {
+app.get("/Properti", async (req, res, next) => {
     try {
         const {
-            jenis, namaPemegang, customerId, minPremi, maxPremi,
+            NamaProperti,tipe,lokasi,harga,Agen,
             page = "1", limit = "10", sortBy = "id", order = "asc", fields
         } = req.query;
 
@@ -78,34 +68,23 @@ app.get("/insurance-policies", async (req, res, next) => {
 
         const filter = {};
         if (jenis) filter.jenis = String(jenis).toLowerCase();
-        if (customerId) {
-            if (!mongoose.isValidObjectId(customerId)) return res.status(400).json({ status: "error", message: "customerId tidak valid" });
-            filter.customer = customerId;
+        if (Agenid) {
+            if (!mongoose.isValidObjectId(customerId)) return res.status(400).json({ status: "error", message: "AgenId tidak valid" });
+            filter.Agen = Agenid;
         }
         if (namaPemegang) {
             const customers = await Customer.find({ nama: { $regex: String(namaPemegang), $options: "i" } }).select("_id");
-            filter.customer = { $in: customers.map(c => c._id) };
-        }
-        if (minPremi !== undefined || maxPremi !== undefined) {
-            filter.premiBulanan = {};
-            if (minPremi !== undefined) {
-                if (!Number.isFinite(Number(minPremi)) || Number(minPremi) < 0) return res.status(400).json({ status: "error", message: "minPremi harus berupa angka >= 0" });
-                filter.premiBulanan.$gte = Number(minPremi);
-            }
-            if (maxPremi !== undefined) {
-                if (!Number.isFinite(Number(maxPremi)) || Number(maxPremi) < 0) return res.status(400).json({ status: "error", message: "maxPremi harus berupa angka >= 0" });
-                filter.premiBulanan.$lte = Number(maxPremi);
-            }
+            filter.Agen = { $in: Agen.map(c => c._id) };
         }
 
-        const allowedSort = ["nomorPolis", "jenis", "premiBulanan", "tanggalMulai", "createdAt", "updatedAt"];
+        const allowedSort = ["Namaproperti","harga","lokasi","AgenID","tipe"];
         const sortField = allowedSort.includes(sortBy) ? sortBy : "createdAt";
         const sortDirection = String(order).toLowerCase() === "desc" ? -1 : 1;
         const projection = fields ? String(fields).split(",").map(f => f.trim()).filter(f => /^[a-zA-Z][a-zA-Z0-9]*$/.test(f)).join(" ") : "";
 
         const total = await InsurancePolicy.countDocuments(filter);
         let query = InsurancePolicy.find(filter)
-            .populate("customer", "nama email nomorTelepon")
+            .populate("Agen", "nama email ")
             .sort({ [sortField]: sortDirection, _id: 1 })
             .skip((pageNum - 1) * limitNum)
             .limit(limitNum);
@@ -120,7 +99,7 @@ app.get("/insurance-policies", async (req, res, next) => {
     } catch (err) { next(err); }
 });
 
-app.get("/insurance-policies/:id", async (req, res, next) => {
+app.get("/Properti/:id", async (req, res, next) => {
     try {
         if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ status: "error", message: "ID polis tidak valid", data: null });
         const policy = await InsurancePolicy.findById(req.params.id).populate("customer", "nama email nomorTelepon alamat");
@@ -129,8 +108,7 @@ app.get("/insurance-policies/:id", async (req, res, next) => {
     } catch (err) { next(err); }
 });
 
-// Endpoint customer untuk data yang direferensikan oleh polis
-app.get("/customers", async (req, res, next) => {
+app.get("/Agen", async (req, res, next) => {
     try {
         const { nama, page = "1", limit = "10" } = req.query;
         const p = Number(page), l = Number(limit);
@@ -144,7 +122,7 @@ app.get("/customers", async (req, res, next) => {
     } catch (err) { next(err); }
 });
 
-app.post("/customers", cekApiKey, async (req, res, next) => {
+app.post("/Agen", cekApiKey, async (req, res, next) => {
     try {
         const { nama, email, nomorTelepon, alamat } = req.body || {};
         if (typeof nama !== "string" || !nama.trim() || typeof email !== "string" || !email.trim()) {
@@ -159,8 +137,8 @@ app.post("/customers", cekApiKey, async (req, res, next) => {
     } catch (err) { next(err); }
 });
 
-// POST polis: customerId mereferensikan Customer; pertanggungan tersimpan embedded di dokumen polis
-app.post("/insurance-policies", cekApiKey, async (req, res, next) => {
+
+app.post("/Properti", cekApiKey, async (req, res, next) => {
     try {
         const { nomorPolis, customerId, namaPemegang, emailPemegang, jenis, premiBulanan, tanggalMulai, pertanggungan } = req.body || {};
         if (typeof nomorPolis !== "string" || !nomorPolis.trim() ||
@@ -171,7 +149,7 @@ app.post("/insurance-policies", cekApiKey, async (req, res, next) => {
         }
 
         let customer;
-        if (customerId) {
+        if (Agenid) {
             if (!mongoose.isValidObjectId(customerId)) return res.status(400).json({ status: "error", message: "customerId tidak valid" });
             customer = await Customer.findById(customerId);
             if (!customer) return res.status(400).json({ status: "error", message: "Nasabah dengan customerId tersebut tidak ditemukan" });
